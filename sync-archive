@@ -1,0 +1,72 @@
+#!/usr/bin/env python
+import codecs
+import json
+import os
+import re
+import subprocess
+import urllib2
+
+POCKET_API = "http://getpocket.com/v3"
+TOKENFILE = "token"
+CONSUMER_KEY = "31329-414d08305dbbbf5a7efcb10a"
+CACHED_RESPONSE_FILE = "cached"
+ARCHIVE_DIR = "archive"
+ARCHIVE_INDEX = os.path.abspath(os.path.join(ARCHIVE_DIR, "index.html"))
+
+with open(TOKENFILE) as tokenfile:
+    token = tokenfile.read()
+print "token: %s" % token
+
+if os.path.exists(CACHED_RESPONSE_FILE):
+    print "using cached response"
+    with open(CACHED_RESPONSE_FILE) as cached:
+        content = json.load(cached)
+else:
+    response = urllib2.urlopen("%(POCKET_API)s/get?consumer_key=%(CONSUMER_KEY)s&access_token=%(token)s" % locals())
+    content = json.loads(response.read())
+    with open(CACHED_RESPONSE_FILE, "w") as cached:
+        json.dump(content, cached, indent=4)
+
+
+with codecs.open(ARCHIVE_INDEX, "w", encoding="utf-8") as index:
+    for key, item in content.get("list", {}).iteritems():
+        print "archiving %s" % item.get("resolved_url")
+        item_dir = os.path.join(ARCHIVE_DIR, key)
+        print "\tlocal copy under %s" % item_dir
+        if not os.path.exists(item_dir):
+            os.makedirs(item_dir)
+        problems = False
+        log_file = os.path.join(item_dir, "wget.log")
+        stacktrace_file = os.path.join(item_dir, "stacktrace")
+        try:
+            subprocess.check_call(["wget", "-E", "-H", "-k", "-K", "-o", "wget.log", "-p", item.get("resolved_url")], cwd=item_dir)
+        except Exception, e:
+            problems = True
+            print "\tan error occured: %s" % e
+            with open(stacktrace_file, "w") as stacktrace:
+                stacktrace.write(str(e))
+            print "\tlog stored in %s" % log_file
+            print "\tstacktrace stored in %s" % stacktrace_file
+
+        path = re.sub("^.*://", "", item.get("resolved_url"))
+        path = os.path.join(item_dir, path)
+        for variant in [path, path + ".html", os.path.join(path, "index.html")]:
+            if os.path.exists(variant) and not os.path.isdir(variant):
+                path = variant
+                print "\tpage url is %s" % variant
+                break
+
+        path = path.replace(ARCHIVE_DIR, ".")
+        index.write("<li>")
+        index.write("<a href=\"%s\">%s</a>\n" % (path, item.get("resolved_title")))
+        index.write("-- <a href=\"%s\">[original]</a>\n" % item.get("resolved_url"))
+        if problems:
+            index.write("-- <a href=\"%s\">[log]</a>" % log_file)
+            index.write("<a href=\"%s\">[stacktrace]</a>" % stacktrace_file)
+        index.write("<p>%s</p>" % item.get("excerpt"))
+        index.write("</li>")
+
+        print
+print
+
+print "archive index: file://%s" % ARCHIVE_INDEX
