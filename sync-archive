@@ -28,6 +28,9 @@ else:
         json.dump(content, cached, indent=4)
 
 
+if not os.path.exists(ARCHIVE_DIR):
+    os.makedirs(ARCHIVE_DIR)
+
 with codecs.open(ARCHIVE_INDEX, "w", encoding="utf-8") as index:
     for key, item in content.get("list", {}).iteritems():
         print "archiving %s" % item.get("resolved_url")
