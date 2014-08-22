@@ -1,0 +1,27 @@
+#!/bin/bash
+set -e -E -u
+
+TOKENFILE=token
+CONSUMER_KEY="31329-414d08305dbbbf5a7efcb10a"
+
+if [[ -e $TOKENFILE ]]; then
+    echo "'$TOKENFILE' already there, skipping register process"
+    echo "(if you want to re-register, please remove '$TOKENFILE' first, then run this script again)"
+    exit 1
+fi
+
+RESULT=$(curl -s -XPOST https://getpocket.com/v3/oauth/request -H "Content-Type: application/json" -d '{"consumer_key":"'$CONSUMER_KEY'", "redirect_uri": "github.com"}')
+CODE=${RESULT##code=}
+echo "code: $CODE"
+
+echo "please authorize auto-archive to access your pocket account in the following browser window"
+read -t 10 -p "Hit ENTER or wait ten seconds..."
+gnome-www-browser "https://getpocket.com/auth/authorize?request_token=$CODE&redirect_uri=https://upload.wikimedia.org/wikipedia/commons/3/39/Tauchzeichen-Okay-Diving-Sign-Okay.png"
+
+RESULT=$(curl -s -XPOST https://getpocket.com/v3/oauth/authorize -H "Content-Type: application/json" -d '{"consumer_key":"'$CONSUMER_KEY'", "code": "'$CODE'"}')
+TOKEN=$(sed "s/access_token=//;s/&.*$//" <<< $RESULT)
+echo $TOKEN > $TOKENFILE
+
+echo "new token: $TOKEN"
+
+echo "done."

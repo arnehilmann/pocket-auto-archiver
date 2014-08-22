@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e -E -u
+
+TOKENFILE=token
+CONSUMER_KEY="31329-414d08305dbbbf5a7efcb10a"
+
+if [[ -e $TOKENFILE ]]; then
+    TOKEN=$(cat $TOKENFILE)
+else
+    echo "'$TOKENFILE' not found, please 'register' first!"
+    exit 1
+fi
+
+curl -s "http://getpocket.com/v3/get?consumer_key=$CONSUMER_KEY&access_token=$TOKEN"
+echo
+
+echo "done."
