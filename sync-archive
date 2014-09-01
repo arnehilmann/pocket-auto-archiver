@@ -4,6 +4,7 @@ import json
 import os
 import re
 import subprocess
+import time
 import urllib2
 
 POCKET_API = "http://getpocket.com/v3"
@@ -32,7 +33,12 @@ if not os.path.exists(ARCHIVE_DIR):
     os.makedirs(ARCHIVE_DIR)
 
 with codecs.open(ARCHIVE_INDEX, "w", encoding="utf-8") as index:
+    print
     for key, item in content.get("list", {}).iteritems():
+        if not item.get("resolved_url"):
+            print "no url found for item"
+            print item
+            continue
         print "archiving %s" % item.get("resolved_url")
         item_dir = os.path.join(ARCHIVE_DIR, key)
         print "\tlocal copy under %s" % item_dir
@@ -41,6 +47,13 @@ with codecs.open(ARCHIVE_INDEX, "w", encoding="utf-8") as index:
         problems = False
         log_file = os.path.join(item_dir, "wget.log")
         stacktrace_file = os.path.join(item_dir, "stacktrace")
+        if os.path.exists(log_file):
+            if not os.path.exists(stacktrace_file):
+                print "\talready stored: added %s, latest update %s" % (
+                    time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(item.get("time_added")))),
+                    time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(item.get("time_updated"))))
+                )
+                continue
         try:
             subprocess.check_call(["wget", "-E", "-H", "-k", "-K", "-o", "wget.log", "-p", item.get("resolved_url")], cwd=item_dir)
         except Exception, e:
@@ -69,7 +82,6 @@ with codecs.open(ARCHIVE_INDEX, "w", encoding="utf-8") as index:
         index.write("<p>%s</p>" % item.get("excerpt"))
         index.write("</li>")
 
-        print
 print
 
 print "archive index: file://%s" % ARCHIVE_INDEX
