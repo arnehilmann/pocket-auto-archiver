@@ -1,0 +1,63 @@
+#!/usr/bin/env python
+import codecs
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+import urllib2
+
+CACHED_RESPONSE_FILE = "cached"
+ARCHIVE_DIR = "archive"
+ARCHIVE_INDEX = os.path.abspath(os.path.join(ARCHIVE_DIR, "index.html"))
+
+with open(CACHED_RESPONSE_FILE) as cached:
+    content = json.load(cached)
+
+if not os.path.exists(ARCHIVE_DIR):
+    os.makedirs(ARCHIVE_DIR)
+
+os.chdir(ARCHIVE_DIR)
+with codecs.open("index.html", "w", encoding="utf-8") as index:
+    index.write('''
+	<html>
+		<head>
+			<link rel="stylesheet" href="bootstrap.min.css">
+			<link rel="stylesheet" href="archive.css">
+		</head>
+		<body>
+			<ul class="archive-list">''')
+    for key, item in sorted(content.get("list", {}).iteritems(), key=lambda (k, v): v.get("sort_id")):
+        path = item.get("resolved_url")
+        if not path:
+            continue
+        path = os.path.join(key, re.sub("^.*://", "", path))
+        for variant in [path, path + ".html", os.path.join(path, "index.html")]:
+            if os.path.exists(variant) and not os.path.isdir(variant):
+                path = variant
+                break
+
+	print "adding link to %s" % item.get("resolved_title")
+
+        meta_file = os.path.join(key, "meta.json")
+        with open(meta_file, "w") as meta:
+            json.dump(item, meta, indent=4)
+
+        index.write('<li class="archive">')
+        index.write("<a href=\"%s\">%s</a>\n" % (path, item.get("resolved_title")))
+        index.write("-- <a href=\"%s\">[original]</a>\n" % item.get("resolved_url"))
+        index.write(" <a href=\"%s\">[meta]</a>\n" % meta_file)
+        log_file = os.path.join(key, "wget.log")
+        if os.path.exists(log_file):
+            index.write(" <a href=\"%s\">[log]</a>" % log_file)
+        stacktrace_file = os.path.join(key, "stacktrace")
+        if os.path.exists(stacktrace_file):
+            index.write(" -- <a href=\"%s\">[stacktrace]</a>" % stacktrace_file)
+        index.write("<p>%s</p>" % item.get("excerpt"))
+        index.write("</li>")
+    index.write('</ul></body></html>')
+
+print
+
+print "archive index: file://%s" % ARCHIVE_INDEX
