@@ -4,84 +4,90 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 import urllib2
 
 POCKET_API = "http://getpocket.com/v3"
 TOKENFILE = "token"
 CONSUMER_KEY = "31329-414d08305dbbbf5a7efcb10a"
-CACHED_RESPONSE_FILE = "cached"
 ARCHIVE_DIR = "archive"
+CACHED_RESPONSE_FILE = os.path.join(ARCHIVE_DIR, "cached")
 ARCHIVE_INDEX = os.path.abspath(os.path.join(ARCHIVE_DIR, "index.html"))
+LAST_QUERY_TIMESTAMP_FILE = "last_queried"
+MAX_TRIES = 3
 
 with open(TOKENFILE) as tokenfile:
-    token = tokenfile.read()
+    token = tokenfile.read().strip()
 print "token: %s" % token
 
+content = None
 if os.path.exists(CACHED_RESPONSE_FILE):
-    print "using cached response"
     with open(CACHED_RESPONSE_FILE) as cached:
         content = json.load(cached)
-else:
-    response = urllib2.urlopen("%(POCKET_API)s/get?consumer_key=%(CONSUMER_KEY)s&access_token=%(token)s" % locals())
-    content = json.loads(response.read())
-    with open(CACHED_RESPONSE_FILE, "w") as cached:
-        json.dump(content, cached, indent=4)
 
+since = content.get("since") if content else 0
 
 if not os.path.exists(ARCHIVE_DIR):
     os.makedirs(ARCHIVE_DIR)
 
-with codecs.open(ARCHIVE_INDEX, "w", encoding="utf-8") as index:
-    print
-    for key, item in content.get("list", {}).iteritems():
-        if not item.get("resolved_url"):
-            print "no url found for item"
-            print item
-            continue
-        print "archiving %s" % item.get("resolved_url")
-        item_dir = os.path.join(ARCHIVE_DIR, key)
-        print "\tlocal copy under %s" % item_dir
-        if not os.path.exists(item_dir):
-            os.makedirs(item_dir)
-        problems = False
-        log_file = os.path.join(item_dir, "wget.log")
-        stacktrace_file = os.path.join(item_dir, "stacktrace")
-        if os.path.exists(log_file):
-            if not os.path.exists(stacktrace_file):
-                print "\talready stored: added %s, latest update %s" % (
-                    time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(item.get("time_added")))),
-                    time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(item.get("time_updated"))))
-                )
-                continue
+response = urllib2.urlopen("%(POCKET_API)s/get?consumer_key=%(CONSUMER_KEY)s&access_token=%(token)s&sort=newest&state=all&detailType=complete&since=%(since)i" % locals())
+content = json.loads(response.read())
+
+with open(CACHED_RESPONSE_FILE, "w") as cached:
+    json.dump(content, cached, indent=4)
+
+items = content.get("list")
+if not items:
+    items = {}
+
+for key, item in items.iteritems():
+    if not item.get("resolved_url"):
+        continue
+    item_dir = os.path.join(ARCHIVE_DIR, key)
+    if not os.path.exists(item_dir):
+        os.makedirs(item_dir)
+    with open(os.path.join(item_dir, "item.json"), "w") as json_file:
+        json.dump(item, json_file, indent=4)
+
+for key in os.listdir(ARCHIVE_DIR):
+    item_dir = os.path.join(ARCHIVE_DIR, key)
+    if not os.path.exists(os.path.join(item_dir, "item.json")):
+        continue
+    with open(os.path.join(item_dir, "item.json")) as json_file:
+        item = json.load(json_file)
+    log_file = os.path.join(item_dir, "wget.log")
+    stacktrace_file = os.path.join(item_dir, "stacktrace")
+    print "fetching %s" % item.get("resolved_title")
+
+    fetch_tries = 0
+    already_fetched = os.path.exists(log_file)
+    if os.path.exists(stacktrace_file):
         try:
-            subprocess.check_call(["wget", "-E", "-H", "-k", "-K", "-o", "wget.log", "-p", item.get("resolved_url")], cwd=item_dir)
-        except Exception, e:
-            problems = True
-            print "\tan error occured: %s" % e
-            with open(stacktrace_file, "w") as stacktrace:
-                stacktrace.write(str(e))
-            print "\tlog stored in %s" % log_file
-            print "\tstacktrace stored in %s" % stacktrace_file
-
-        path = re.sub("^.*://", "", item.get("resolved_url"))
-        path = os.path.join(item_dir, path)
-        for variant in [path, path + ".html", os.path.join(path, "index.html")]:
-            if os.path.exists(variant) and not os.path.isdir(variant):
-                path = variant
-                print "\tpage url is %s" % variant
-                break
-
-        path = path.replace(ARCHIVE_DIR, ".")
-        index.write("<li>")
-        index.write("<a href=\"%s\">%s</a>\n" % (path, item.get("resolved_title")))
-        index.write("-- <a href=\"%s\">[original]</a>\n" % item.get("resolved_url"))
-        if problems:
-            index.write("-- <a href=\"%s\">[log]</a>" % log_file)
-            index.write("<a href=\"%s\">[stacktrace]</a>" % stacktrace_file)
-        index.write("<p>%s</p>" % item.get("excerpt"))
-        index.write("</li>")
-
-print
-
-print "archive index: file://%s" % ARCHIVE_INDEX
+            with open(os.path.join(item_dir, "fetch_tries")) as tries_file:
+                fetch_tries = int(tries_file.read().strip())
+        except:
+            fetch_tries = 0
+        if fetch_tries < MAX_TRIES:
+            already_fetched = False
+    if already_fetched:
+        continue
+#        if not os.path.exists(stacktrace_file):
+#            print "\talready stored: added %s, latest update %s" % (
+#                time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(item.get("time_added")))),
+#                time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(item.get("time_updated"))))
+#            )
+    fetch_tries += 1
+    with open(os.path.join(item_dir, "fetch_tries"), "w") as tries_file:
+        tries_file.write(str(fetch_tries))
+    print
+    print "archiving %s, try %i" % (item.get("resolved_url"), fetch_tries)
+    print "\tarchive dir: %s" % item_dir
+    try:
+        subprocess.check_call(["wget", "-E", "-H", "-k", "-K", "-o", "wget.log", "-p", item.get("resolved_url")], cwd=item_dir)
+    except Exception, e:
+        print "\tan error occured: %s" % e
+        with open(stacktrace_file, "w") as stacktrace:
+            stacktrace.write(str(e))
+        print "\tlog stored in %s" % log_file
+        print "\tstacktrace stored in %s" % stacktrace_file
