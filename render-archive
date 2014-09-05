@@ -47,7 +47,7 @@ with codecs.open("index.html", "w", encoding="utf-8") as index:
                 path = variant
                 break
 
-	print "adding link to %s" % item.get("resolved_title")
+	print "adding link to %s" % item.get("resolved_title").encode("utf-8")
 
         meta_file = os.path.join(key, "meta.json")
         with open(meta_file, "w") as meta:
