@@ -58,7 +58,7 @@ for key in os.listdir(ARCHIVE_DIR):
         item = json.load(json_file)
     log_file = os.path.join(item_dir, "wget.log")
     stacktrace_file = os.path.join(item_dir, "stacktrace")
-    print "fetching %s" % item.get("resolved_title")
+    print "fetching %s" % item.get("resolved_title").encode("utf-8")
 
     fetch_tries = 0
     already_fetched = os.path.exists(log_file)
@@ -81,10 +81,10 @@ for key in os.listdir(ARCHIVE_DIR):
     with open(os.path.join(item_dir, "fetch_tries"), "w") as tries_file:
         tries_file.write(str(fetch_tries))
     print
-    print "archiving %s, try %i" % (item.get("resolved_url"), fetch_tries)
+    print "archiving %s, try %i" % (item.get("resolved_url").encode("utf-8"), fetch_tries)
     print "\tarchive dir: %s" % item_dir
     try:
-        subprocess.check_call(["wget", "-E", "-H", "-k", "-K", "-o", "wget.log", "-p", item.get("resolved_url")], cwd=item_dir)
+        subprocess.check_call(["wget", "-E", "-H", "-k", "-K", "-o", "wget.log", "-p", item.get("resolved_url").encode("utf-8")], cwd=item_dir)
     except Exception, e:
         print "\tan error occured: %s" % e
         with open(stacktrace_file, "w") as stacktrace:
