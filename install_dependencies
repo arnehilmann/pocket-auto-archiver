@@ -1,0 +1,9 @@
+if yum --version > /dev/null 2>&1; then
+	sudo yum install fontconfig freetype libfreetype.so.6 libfontconfig.so.1 libstdc++.so.6
+else
+	echo "Please install the following packages (actuals package names may vary on your distro):"
+	echo "fontconfig freetype libfreetype.so.6 libfontconfig.so.1 libstdc++.so.6"
+fi
+
+wget https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-1.9.7-linux-x86_64.tar.bz2
+tar jxvf phantomjs-1.9.7-linux-x86_64.tar.bz2
