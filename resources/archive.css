@@ -1,3 +1,22 @@
+body {
+        padding: 5% 10% 5%;
+}
 .archive {
 	text-size: smaller;
 }
+
+div.archive {
+	width: 320px;
+	height: 220px;
+	border: 10px solid lightgrey;
+	float: left;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	word-wrap: break-word;
+        margin: 10px;
+        background: lightgrey;
+}
+
+.clear { clear: both;}
+.left {float: left; width: 100px;}
+.right {float: right; width: 200px;}
