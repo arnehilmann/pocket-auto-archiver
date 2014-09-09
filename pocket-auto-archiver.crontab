@@ -1,0 +1,7 @@
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=ec2-user
+HOME=/home/ec2-user/pocket-auto-archiver
+
+11 * * * * (date; . /etc/profile; time ./sync-archive; time ./render-archive; echo script took $SECONDS seconds; echo) >> pocket-auto-archiver.log 2>&1
+
