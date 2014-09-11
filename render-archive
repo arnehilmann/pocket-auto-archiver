@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 import urllib2
+#import urllib
 
 ARCHIVE_DIR = "archive"
 ARCHIVE_INDEX = os.path.abspath(os.path.join(ARCHIVE_DIR, "index.html"))
@@ -40,7 +41,7 @@ with codecs.open("index.html", "w", encoding="utf-8") as index:
 			<link rel="stylesheet" href="bootstrap.min.css">
 			<link rel="stylesheet" href="archive.css">
 		</head>
-		<body>
+		<body class="autumn">
 			''')
     for key, item in sorted(content.iteritems(), key=lambda (k, v): v.get("time_added"), reverse=True):
         path = item.get("resolved_url")
@@ -57,8 +58,13 @@ with codecs.open("index.html", "w", encoding="utf-8") as index:
         if not os.path.exists(screenshot):
             if not os.path.exists(screenshot_problem):
                 print "\trendering screenshot %s" % screenshot
-                print " ".join([PHANTOMJS, RASTERIZEJS, path, screenshot, SCREENSHOT_SIZE, SCREENSHOT_ZOOM])
-                returncode = subprocess.call([PHANTOMJS, RASTERIZEJS, path, screenshot, SCREENSHOT_SIZE, SCREENSHOT_ZOOM])
+                if path.endswith(".pdf"):
+                    uq_path = urllib2.unquote(path)
+                    cmd = ["pdftocairo", "-scale-to", "300", "-png", "-singlefile", uq_path, os.path.splitext(screenshot)[0]]
+                    print " ".join(cmd)
+                else:
+                    cmd = [PHANTOMJS, RASTERIZEJS, path, screenshot, SCREENSHOT_SIZE, SCREENSHOT_ZOOM]
+                returncode = subprocess.call(cmd)
                 if returncode:
                     print "\texit code of rendering: %i" % returncode
                     open(screenshot_problem, "w")
@@ -66,25 +72,40 @@ with codecs.open("index.html", "w", encoding="utf-8") as index:
             screenshot = None
 	#print "item '%s'" % item.get("resolved_title").encode("utf-8")
 
+        title = item.get("resolved_title")
+        if not title:
+           if path.endswith(".pdf"):
+               uq_path = urllib2.unquote(path)
+               p = subprocess.Popen(["pdfinfo", uq_path], stdout=subprocess.PIPE)
+               for line in p.communicate()[0].splitlines():
+                   if line.startswith("Title:"):
+                       title = re.sub("^[^:]*:\s*", "", line).rstrip()
+                   if line.startswith("Author:"):
+                       author = re.sub("^[^:]*:\s*", "", line).rstrip()
+               if author:
+                   title = "%s: %s" % (author, title)
+               item["resolved_title"] = title
+           
+
         meta_file = os.path.join(key, "meta.json")
         with open(meta_file, "w") as meta:
             json.dump(item, meta, indent=4)
 
-        index.write('<div class="archive">')
+        index.write('<div class="itemcontainer"><div class="item">')
         if screenshot:
             index.write('<a class="left" href="%s"><img src="%s" width="100"></img></a>\n' % (path, screenshot))
         index.write('<div class="right"><a href=\"%s\">%s</a>\n' % (path, item.get("resolved_title")))
-        index.write("-- <a href=\"%s\">[original]</a>\n" % item.get("resolved_url"))
+        index.write("<br/><a href=\"%s\">[original]</a>\n" % item.get("resolved_url"))
         index.write(" <a href=\"%s\">[meta]</a>\n" % meta_file)
         log_file = os.path.join(key, "wget.log")
         if os.path.exists(log_file):
             index.write(" <a href=\"%s\">[log]</a>" % log_file)
-        stacktrace_file = os.path.join(key, "stacktrace")
-        if os.path.exists(stacktrace_file):
-            index.write(" -- <a href=\"%s\">[stacktrace]</a>" % stacktrace_file)
+        #stacktrace_file = os.path.join(key, "stacktrace")
+        #if os.path.exists(stacktrace_file):
+            #index.write(" <a href=\"%s\">[stacktrace]</a>" % stacktrace_file)
         index.write("</div>")
-        index.write('<div class="clear">%s</div>' % item.get("excerpt"))
-        index.write("</div>\n\n")
+        index.write('<div class="clear excerpt">%s</div>' % item.get("excerpt"))
+        index.write("</div></div>\n\n")
     index.write('</body></html>')
 
 print
