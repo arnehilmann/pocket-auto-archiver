@@ -1,22 +1,57 @@
 body {
         padding: 5% 10% 5%;
 }
+
+.reef {
+	background: -webkit-linear-gradient(0deg, #00d2ff 10%, #3a7bd5 90%); /* Chrome 10+, Saf5.1+ */
+	background:    -moz-linear-gradient(0deg, #00d2ff 10%, #3a7bd5 90%); /* FF3.6+ */
+	background:     -ms-linear-gradient(0deg, #00d2ff 10%, #3a7bd5 90%); /* IE10 */
+	background:      -o-linear-gradient(0deg, #00d2ff 10%, #3a7bd5 90%); /* Opera 11.10+ */
+	background:         linear-gradient(0deg, #00d2ff 10%, #3a7bd5 90%); /* W3C */
+}
+
+.autumn {
+	background: -webkit-linear-gradient(0deg, #DAD299 10%, #B0DAB9 90%); /* Chrome 10+, Saf5.1+ */
+	background:    -moz-linear-gradient(0deg, #DAD299 10%, #B0DAB9 90%); /* FF3.6+ */
+	background:     -ms-linear-gradient(0deg, #DAD299 10%, #B0DAB9 90%); /* IE10 */
+	background:      -o-linear-gradient(0deg, #DAD299 10%, #B0DAB9 90%); /* Opera 11.10+ */
+	background:         linear-gradient(0deg, #DAD299 10%, #B0DAB9 90%); /* W3C */
+}
+        
+
+
 .archive {
 	text-size: smaller;
 }
 
-div.archive {
+div.itemcontainer {
 	width: 320px;
-	height: 220px;
-	border: 10px solid lightgrey;
+	height: 210px;
+	border: 1px solid lightgrey;
 	float: left;
+        margin: 10px;
+        background: white;
+	overflow: hidden;
+}
+
+div.itemcontainer div.item {
+	border: 9px solid white;
+        width: 319px;
+        height: 209px;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	word-wrap: break-word;
-        margin: 10px;
-        background: lightgrey;
 }
 
-.clear { clear: both;}
+div.item div {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	word-wrap: break-word;
+}
+
+.excerpt {
+	font-size: smaller;
+}
+.clear { clear: both; padding-top: 10px;}
 .left {float: left; width: 100px;}
-.right {float: right; width: 200px;}
+.right {float: right; width: 190px;}
