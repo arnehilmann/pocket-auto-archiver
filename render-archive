@@ -77,6 +77,7 @@ with codecs.open("index.html", "w", encoding="utf-8") as index:
            if path.endswith(".pdf"):
                uq_path = urllib2.unquote(path)
                p = subprocess.Popen(["pdfinfo", uq_path], stdout=subprocess.PIPE)
+               author = None
                for line in p.communicate()[0].splitlines():
                    if line.startswith("Title:"):
                        title = re.sub("^[^:]*:\s*", "", line).rstrip()
